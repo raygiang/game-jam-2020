@@ -146,7 +146,8 @@ export default class GameScreen extends Phaser.Scene {
         this.physics.add.overlap( this.projectiles, this.otherPlayers, ( proj: Projectile, player: Player ) => {
             if( player.team !== this.playerTeam ) {
                 proj.paintClosestTile();
-                player.playerHit();
+                player.playerHit( proj.damagePts );
+                if( player === this.player ) player.updatePlayerDisplayInfo();
             }
         } );
     }
@@ -187,6 +188,9 @@ export default class GameScreen extends Phaser.Scene {
             }
         } );
         this.player.addMinimapMarker( '#0000FF' );
+        this.player.addPlayerDisplayInfo();
+
+        // this.player.respawnPlayer();
     }
 
     update = () => {

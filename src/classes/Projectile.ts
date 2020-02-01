@@ -5,6 +5,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private direction : string;
     private gameScreen : GameScreen;
     private hexColour : string;
+    public damagePts : number = 1;
     
     constructor( scene: GameScreen, x: number, y: number, projType: number, direction: string, colour: string ) {
         super( scene, x, y, 'projectiles', ( projType + 1 ) * 13 );

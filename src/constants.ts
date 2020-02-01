@@ -19,6 +19,8 @@ const config = {
 
 const playerSettings = {
     speed: 100,
+    hp: 5,
+    maxAmmo: 10,
 }
 
 const musicConfig = {
