@@ -1,3 +1,3 @@
-# Phaser 3 TypeScript Project Template
+# Game Jam 2020 Game
 
-Template Typescript Phaser 3 Project
+Theme is Repair
