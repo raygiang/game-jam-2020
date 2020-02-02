@@ -2,11 +2,11 @@ const config = {
     title: 'Kento\'s Game',
     width: 1200,
     height: 500,
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS,
     backgroundColor: '#6df7b1',
     parent: 'game-container',
     scale: {
-        // mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_HORIZONTALLY
     },
     physics: {
@@ -21,6 +21,7 @@ const playerSettings = {
     speed: 100,
     hp: 5,
     maxAmmo: 10,
+    shunpoSpd: 1000,
 }
 
 const musicConfig = {

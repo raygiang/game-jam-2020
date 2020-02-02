@@ -1,4 +1,6 @@
 import 'phaser';
+import StartScreen from './scenes/StartScreen';
+import GameLobby from './scenes/GameLobby';
 import GameScreen from './scenes/GameScreen';
 import { config } from './constants';
 import { loadPlayerAnimations, loadProjectileAnimations } from './helpers/playerAssetFunctions';
@@ -7,7 +9,12 @@ window.addEventListener( 'load', () => {
 	const game = new Phaser.Game( config );
     
     game.scene.add( 'Boot', Boot, true );
+    game.scene.add( 'StartScreen', StartScreen, false );
+    game.scene.add( 'GameLobby', GameLobby, false );
     game.scene.add( 'GameScreen', GameScreen, false );
+
+    // console.log( Phaser.Core.TimeStep.forceSetTimeOut );
+    game.events.off( 'hidden' );
 } );
 
 class Boot extends Phaser.Scene {
@@ -25,6 +32,9 @@ class Boot extends Phaser.Scene {
     }
 
 	preload() {
+        this.cameras.main.setBackgroundColor( 0 );
+        this.add.text( config.width / 2 - 260, config.height / 2 - 30, 'Loading Game...', { fontSize: 60 } );
+
         this.load.setBaseURL( 'assets/' );
         this.load.image( 'stage-1', '/stages/stage-1/stage-1.jpg' );
         this.load.image( 'stage-1-base', '/stages/stage-1/base.png' );
@@ -54,7 +64,7 @@ class Boot extends Phaser.Scene {
 	create() {
         this.initAnimations();
 
-		this.scene.start( 'GameScreen' );
+		this.scene.start( 'StartScreen' );
 	}
 
 }

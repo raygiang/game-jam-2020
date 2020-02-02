@@ -1,0 +1,58 @@
+const express = require( "express" ); 
+const http = require( "http" );
+const socketIO = require( "socket.io" );
+const path = require( "path" );
+
+const app = express();
+const server = http.createServer( app );
+const io = socketIO.listen( server );
+
+app.use( express.static( path.join( __dirname + "/" ) ) );
+server.listen( process.env.PORT || 9001, '0.0.0.0' );
+console.log( "Server running on localhost:9001" );
+
+let queueList = [];
+let playerList = new Map();
+
+userDisconnect = ( socket ) => {
+    playerList.delete( socket.id );
+}
+
+startGame = () => {
+    let gamePlayers = [ ...queueList ];
+    queueList = [];
+    let roomId = gamePlayers[0];
+    let team;
+
+    for( let i = 0; i < gamePlayers.length; i++ ) {
+        io.sockets.connected[ gamePlayers[i] ].join( roomId );
+        team = i % 2 === 0 ? 'unicorn' : 'spaghetti';
+        io.sockets.to( gamePlayers[i] ).emit( 'moveToGameScreen', roomId, team, Math.floor( i / 2 ) );
+    }
+}
+
+io.on( 'connection', ( socket ) => {
+    console.log( 'connection made with id: ' + socket.id );
+    queueList.push( socket.id );
+
+    if( queueList.length === 2 ) {
+        startGame();
+    }
+
+    socket.on( 'disconnect', userDisconnect, socket );
+    socket.on( 'exportPlayer', ( socketId, roomId, player, team, playerNum ) => {
+        socket.to( roomId ).emit( 'addOpponent', socketId, player, team, playerNum );
+    } );
+    socket.on( 'exportMovement', ( socketId, roomId, x, y, animKey, animFrame ) => {
+        socket.to( roomId ).emit( 'updateMovement', socketId, x, y, animKey, animFrame );
+    } );
+    socket.on( 'addProjectile', ( socketId, roomId, x, y, projType, direction, team ) => {
+        io.in( roomId ).emit( 'addProjectileSprite', socketId, x, y, projType, direction, team );
+    } );
+    socket.on( 'respawnPlayer', ( socketId, roomId ) => {
+        io.in( roomId ).emit( 'respawnPlayer', socketId );
+    } );
+    socket.on( 'paintTile', ( roomId, keyString, tileX, tileY, randomWidth, randomHeight, tileColour ) => {
+        io.in( roomId ).emit( 'paintTile', keyString, tileX, tileY, randomWidth, randomHeight, tileColour );
+    } );
+} );

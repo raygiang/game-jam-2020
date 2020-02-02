@@ -5,14 +5,16 @@ import Projectile from '../classes/Projectile';
 export default class GameScreen extends Phaser.Scene {
 
     public tileWidth : number = 16;
-    private teamOne : string = 'unicorn';
-    private teamTwo : string = 'spaghetti';
+    public teamOne : string = 'unicorn';
+    public teamTwo : string = 'spaghetti';
     private colliderOffset : number = 2;
     private cameraZoom : number = 2;
     private mapWidth : number = this.tileWidth * 75;
     private mapHeight : number = this.tileWidth * 50;
-    private playerTeam : string = this.teamTwo;
-    private playerNum : number = 2;
+    private playerTeam : string;
+    private playerNum : number;
+    public roomId : string;
+    public socket : any;
 
     private stageBase : Phaser.GameObjects.Image;
     private stageSubground : Phaser.GameObjects.Image;
@@ -25,6 +27,7 @@ export default class GameScreen extends Phaser.Scene {
     private teamOneSpawns : number[][] = [];
     private teamTwoSpawns : number[][] = [];
     public paintableTiles : Map<string, Phaser.GameObjects.Graphics> = new Map();
+    private playerMap : Map<string, Player> = new Map();
 
     private player : Player;
     private music : Phaser.Sound.BaseSound;
@@ -36,6 +39,23 @@ export default class GameScreen extends Phaser.Scene {
 
     constructor() {
         super( 'GameScreen' );
+    }
+
+    init( data ) {
+        this.socket = data.socket;
+        this.roomId = data.roomId;
+        this.playerTeam = data.team;
+        this.playerNum = data.num;
+    }
+
+    restoreDepths = () => {
+        this.player.setDepth( 1 );
+        this.stageForeground.setDepth( 1 );
+        this.minimap.setDepth( 1 );
+        this.otherPlayers.getChildren().forEach( ( player: Player ) => {
+            player.miniMapMarker.setDepth( 1 );
+        } );
+        this.player.restoreDepths();
     }
 
     findSpawnSpots = () => {
@@ -73,21 +93,10 @@ export default class GameScreen extends Phaser.Scene {
     }
 
     initPlayer = () => {
-        for( let i = 0; i < 2; i++ ) {
-            for( let j = 0; j < 4; j++ ) {
-                let team = i === 0 ? this.teamOne : this.teamTwo;
-                let spawns = i === 0 ? this.teamOneSpawns : this.teamTwoSpawns;
-                
-                if( ! ( team === this.playerTeam && j === this.playerNum ) ) {
-                    let newPlayer = new Player( this, this.tileWidth * spawns[j][0], this.tileWidth * spawns[j][1], team, j );;
-                    this.otherPlayers.add( newPlayer );
-                }
-            }
-        }
-
         let spawnSpots = this.playerTeam === this.teamOne ? this.teamOneSpawns : this.teamTwoSpawns;
         this.player = new Player( this, this.tileWidth * spawnSpots[this.playerNum][0], this.tileWidth * spawnSpots[this.playerNum][1], this.playerTeam, this.playerNum );
         this.cameras.main.startFollow( this.player );
+        this.exportPlayer();
     }
 
     initColliders = () => {
@@ -144,10 +153,16 @@ export default class GameScreen extends Phaser.Scene {
             proj.paintClosestTile();
         } );
         this.physics.add.overlap( this.projectiles, this.otherPlayers, ( proj: Projectile, player: Player ) => {
-            if( player.team !== this.playerTeam ) {
+            if( proj.team !== player.team ) {
+                player.playerHit();
                 proj.paintClosestTile();
-                player.playerHit( proj.damagePts );
-                if( player === this.player ) player.updatePlayerDisplayInfo();
+            }
+        } );
+        this.physics.add.overlap( this.projectiles, this.player, ( player: Player, proj: Projectile ) => {
+            if( proj.team !== player.team ) {
+                player.playerDmg( proj.damagePts );
+                player.updatePlayerDisplayInfo();
+                proj.paintClosestTile();
             }
         } );
     }
@@ -171,36 +186,85 @@ export default class GameScreen extends Phaser.Scene {
         this.player.initKeyListeners( this.cursorKeys );
         
         this.physics.add.collider( this.player, this.colliderCells );
+        // this.physics.add.collider( this.player, this.otherPlayers );
         this.physics.add.collider( this.player, this.unwalkableCells );
-        this.physics.add.collider( this.otherPlayers, this.otherPlayers );
-        this.physics.add.collider( this.otherPlayers, this.colliderCells );
-        this.physics.add.collider( this.otherPlayers, this.unwalkableCells );
 
         this.music = this.sound.add( 'stage-music' );
         this.music.play( musicConfig );
 
-        this.otherPlayers.getChildren().forEach( ( player: Player ) => {
-            if( player.team === this.playerTeam && player.playerNum !== this.playerNum ) {
-                player.addMinimapMarker( '#FFFF00' );
-            }
-            else {
-                player.addMinimapMarker( '#FF0000' );
-            }
-        } );
         this.player.addMinimapMarker( '#0000FF' );
         this.player.addPlayerDisplayInfo();
 
         // this.player.respawnPlayer();
+        this.socket.on( 'addOpponent', this.addOpponent );
+        this.socket.on( 'updateMovement', this.updateMovement );
+        this.socket.on( 'addProjectileSprite', this.updateProjectiles );
+        this.socket.on( 'respawnPlayer', this.respawnPlayer );
+        this.socket.on( 'paintTile', this.paintTile );
     }
 
     update = () => {
-        this.player.playerController( this.cursorKeys );
+        if( this.player.playerController( this.cursorKeys ) ) {
+            this.exportMovement();
+        }
         this.projectiles.getChildren().forEach( projectile => {
             projectile.update();
         } );
-        this.otherPlayers.getChildren().forEach( ( player: Player ) => {
-            player.updateMinimapMarker();
-        } );
         this.player.updateMinimapMarker();
+    }
+
+    /************************************************************************
+     * SOCKET FUNCTIONS
+     ************************************************************************/
+    exportPlayer = () => {
+        this.socket.emit( 'exportPlayer', this.socket.id, this.roomId, this.player, this.player.team, this.player.playerNum );
+    }
+
+    addOpponent = ( socketId: string, opponent: Player, team: string, playerNum: number ) => {
+        console.log( 'adding ' + team + ', ' + playerNum );
+        let newPlayer = new Player( this, opponent.x, opponent.y, team, playerNum );
+        let miniMapColour = this.player.team === team ? '#FFFF00' : '#FF0000';
+        newPlayer.addMinimapMarker( miniMapColour );
+        this.playerMap.set( socketId, newPlayer );
+        this.otherPlayers.add( newPlayer );
+        this.restoreDepths();
+    }
+
+    exportMovement = () => {
+        let animKey = this.player.anims.getCurrentKey();
+        let animFrame = this.player.anims.currentFrame.index;
+
+        this.socket.emit( 'exportMovement', this.socket.id, this.roomId, this.player.x, this.player.y, animKey, animFrame );
+    }
+
+    updateMovement = ( socketId: string, x: number, y: number, animKey: string, animFrame: number ) => {
+        let opponentPlayer = this.playerMap.get( socketId );
+        opponentPlayer.updateSprite( x, y, animKey, animFrame );
+        opponentPlayer.updateMinimapMarker();
+    }
+
+    updateProjectiles = ( socketId: string, x: number, y: number, projType: number, direction: string, team: string ) => {
+        let player = this.playerMap.get( socketId );
+        player = player ? player : this.player;
+
+        player.addProjectileSprite( x, y, projType, direction, team );
+    }
+
+    respawnPlayer = ( socketId: string ) => {
+        let player = this.playerMap.get( socketId );
+        player = player ? player : this.player;
+        player.respawnPlayer();
+    }
+
+    paintTile = ( keyString: string, tileX: number, tileY: number, randomWidth: number, randomHeight: number, tileColour: number ) => {
+        let closestTile = this.paintableTiles.get( keyString );
+
+        if( closestTile.defaultFillColor !== tileColour ) {
+            closestTile.clear();
+            closestTile.defaultFillColor = tileColour;
+            closestTile.fillStyle( tileColour );
+            closestTile.fillEllipse( tileX, tileY, randomWidth, randomHeight, 25 );
+            // closestTile.alpha = 0.85;
+        }
     }
 }

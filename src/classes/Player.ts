@@ -8,7 +8,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private facing: string;
     private reloading: boolean;
     private gameScreen: GameScreen;
-    private miniMapMarker: Phaser.GameObjects.Graphics;
+    public miniMapMarker: Phaser.GameObjects.Graphics;
     private reloadBackground: Phaser.GameObjects.Graphics;
     private reloadForeground: Phaser.GameObjects.Graphics;
     private minimapMarkerColour: number;
@@ -44,13 +44,24 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
         scene.add.existing( this );
         scene.physics.add.existing( this );
-
+        
         this.setSize( this.width / 2, this.height / 1.5 );
+    }
+
+    restoreDepths = () => {
+        this.miniMapMarker.setDepth( 1 );
+        this.playerDisplayImage.setDepth( 1 );
+        this.hpDisplayText.setDepth( 1 );
+        this.hpDisplayBackground.setDepth( 1 );
+        this.hpDisplayForeground.setDepth( 1 );
+        this.ammoDisplayText.setDepth( 1 );
+        this.ammoDisplayBackground.setDepth( 1 );
+        this.ammoDisplayForeground.setDepth( 1 );
     }
 
     // Starts the player's movement and animation
     playerController = ( cursorKeys : Phaser.Types.Input.Keyboard.CursorKeys ) => {
-        if( this.canMove === false ) return;
+        if( this.canMove === false ) return false;
         let diagSpd = Math.sqrt( Math.pow( playerSettings.speed, 2 ) / 2 );
 
         if( cursorKeys.left.isDown ) {
@@ -59,18 +70,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-ul-anim`, true );
                 this.facing = 'NW';
+                return true;
             }
             else if( cursorKeys.down.isDown ) {
                 this.setVelocity( -diagSpd, diagSpd );
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-dl-anim`, true );
                 this.facing = 'SW';
+                return true;
             }
             else {
                 this.setVelocity( -playerSettings.speed, 0 );
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-left-anim`, true );
                 this.facing = 'W';
+                return true;
             }
         }
         else if( cursorKeys.right.isDown ) {
@@ -79,18 +93,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-ur-anim`, true );
                 this.facing = 'NE';
+                return true;
             }
             else if( cursorKeys.down.isDown ) {
                 this.setVelocity( diagSpd, diagSpd );
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-dr-anim`, true );
                 this.facing = 'SE';
+                return true;
             }
             else {
                 this.setVelocity( playerSettings.speed, 0 );
                 this.anims.resume();
                 this.play( `${ this.team }-${ this.playerNum }-right-anim`, true );
                 this.facing = 'E';
+                return true;
             }
         }
         else if( cursorKeys.up.isDown ) {
@@ -98,12 +115,35 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             this.anims.resume();
             this.play( `${ this.team }-${ this.playerNum }-up-anim`, true );
             this.facing = 'N';
+            return true;
         }
         else if( cursorKeys.down.isDown ) {
             this.setVelocity( 0, playerSettings.speed );
             this.anims.resume();
             this.play( `${ this.team }-${ this.playerNum }-down-anim`, true );
             this.facing = 'S';
+            return true;
+        }
+
+        return false;
+    }
+
+    shunpo = () => {
+        let diagSpd = Math.sqrt( Math.pow( playerSettings.shunpoSpd, 2 ) / 2 );
+
+        switch( this.facing ) {
+            case 'W':
+                this.setVelocityX( - playerSettings.shunpoSpd );
+                break;
+            case 'E':
+                this.setVelocityX( playerSettings.shunpoSpd );
+                break;
+            case 'N':
+                this.setVelocityY( - playerSettings.shunpoSpd );
+                break;
+            case 'S':
+                this.setVelocityY( playerSettings.shunpoSpd );
+                break;
         }
     }
 
@@ -137,13 +177,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.scene.input.keyboard.on( 'keyup_F', () => {
             this.fireProjectile();
         } );
+
+        // this.scene.input.keyboard.on( 'keyup_SPACE', () => {
+            // this.shunpo();
+        // } );
     }
 
     fireProjectile = () => {
         if( this.projectilesFired < this.maxAmmo ) {
-            let projectileColour = this.team === 'unicorn' ? '#018bee' : '#ff2245';
-            let projectileType = Math.floor( ( Math.random() * 5 ) ); 
-            new Projectile( this.gameScreen, this.x, this.y, projectileType, this.facing, projectileColour );
+            let projType = Math.floor( Math.random() * 5 )
+            this.gameScreen.socket.emit( 'addProjectile', this.gameScreen.socket.id, this.gameScreen.roomId, this.x, this.y, projType, this.facing, this.team );
             this.projectilesFired++;
             this.updatePlayerDisplayInfo();
         }
@@ -153,6 +196,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.beginReload();
             }
         }
+    }
+
+    addProjectileSprite = ( x: number, y: number, projectileType: number, direction: string, team: string ) => {
+        new Projectile( this.gameScreen, this.x, this.y, projectileType, direction, team );
     }
 
     beginReload = () => {
@@ -189,7 +236,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.hpDisplayBackground = this.gameScreen.add.graphics();
         this.hpDisplayBackground.setScrollFactor( 0 );
         this.hpDisplayBackground.fillStyle( 16711686 );
-        this.hpDisplayBackground.fillRect( 368, 137, ( 50 / playerSettings.hp ), 10 );
+        this.hpDisplayBackground.fillRect( 368, 137, ( 50 / playerSettings.hp ) * playerSettings.hp, 10 );
         this.hpDisplayForeground = this.gameScreen.add.graphics();
         this.hpDisplayForeground.setScrollFactor( 0 );
         this.hpDisplayForeground.fillStyle( 755214 )
@@ -218,21 +265,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.miniMapMarker = this.gameScreen.add.graphics();
         this.miniMapMarker.setScrollFactor( 0 );
         this.miniMapMarker.fillStyle( this.minimapMarkerColour );
-        // this.miniMapMarker.fillRect( 753.5 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 125 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 5, 5 );
         this.miniMapMarker.fillCircle( 756 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 127 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 2.5 );
     }
 
     updateMinimapMarker = () => {
         this.miniMapMarker.clear();
         this.miniMapMarker.fillStyle( this.minimapMarkerColour );
-        // this.miniMapMarker.fillRect( 753.5 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 125 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 5, 5 );
         this.miniMapMarker.fillCircle( 756 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 127 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 2.5 );
     }
 
-    playerHit = ( dmg: number ) => {
-        if( this.alpha < 1 ) return;
+    updateSprite = ( x: number, y: number, key: string, frame: number ) => {
+        this.setPosition( x, y );
+        this.anims.load( key, frame );
+    }
 
-        this.playerHP -= dmg;
+    playerHit = () => {
         this.gameScreen.tweens.add( {
             targets: this,
             alpha: { from: 0, to: 1 },
@@ -240,15 +287,24 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             duration: 200,
             repeat: 0,
         } );
+    }
+
+    playerDmg = ( dmg: number ) => {
+        if( this.playerHP <= 0 ) return;
+
+        this.playerHit();
+
+        this.playerHP -= dmg;
         if( this.playerHP <= 0 ) {
             this.disableBody( true, true );
-            this.respawnPlayer();
+            this.gameScreen.socket.emit( 'respawnPlayer', this.gameScreen.socket.id, this.gameScreen.roomId );
         }
     }
 
     respawnPlayer = () => {
         let loopCounter = 0;
 
+        this.anims.pause();
         this.gameScreen.tweens.add( {
             targets: this,
             alpha: { from: 0, to: 1 },
@@ -261,6 +317,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.reloading = true;
                 this.projectilesFired = 10;
                 this.canMove = false;
+                if( this.miniMapMarker ) this.updateMinimapMarker();
+                if( this.ammoDisplayForeground ) this.updatePlayerDisplayInfo();
             },
             onLoop: () => {
                 loopCounter++;
@@ -270,6 +328,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.reloading = false;
                 this.projectilesFired = 0;
                 this.playerHP = playerSettings.hp;
+                this.enableBody( false, 0, 0, true, true );
+                if( this.hpDisplayForeground ) this.updatePlayerDisplayInfo();
             }
         } );
     }

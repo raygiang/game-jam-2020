@@ -5,15 +5,17 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private direction : string;
     private gameScreen : GameScreen;
     private hexColour : string;
+    public team : string;
     public damagePts : number = 1;
     
-    constructor( scene: GameScreen, x: number, y: number, projType: number, direction: string, colour: string ) {
+    constructor( scene: GameScreen, x: number, y: number, projType: number, direction: string, team: string ) {
         super( scene, x, y, 'projectiles', ( projType + 1 ) * 13 );
 
         this.projType = projType;
         this.direction = direction;
         this.gameScreen = scene;
-        this.hexColour = colour;
+        this.team = team;
+        this.hexColour = team === this.gameScreen.teamOne ? '#018bee' : '#ff2245';
         
         scene.add.existing( this );
         scene.physics.add.existing( this );
@@ -86,16 +88,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         let randomWidth = Math.floor( ( Math.random() * 16 ) + 8 );
         let randomHeight = Math.floor( ( Math.random() * 16 ) + 8 );
         let keyString = tileX + ', ' + tileY;
-        let closestTile = this.gameScreen.paintableTiles.get( keyString );
         let tileColour = Phaser.Display.Color.HexStringToColor( this.hexColour ).color;
 
-        if( closestTile.defaultFillColor !== tileColour ) {
-            closestTile.clear();
-            closestTile.defaultFillColor = tileColour;
-            closestTile.fillStyle( tileColour );
-            closestTile.fillEllipse( tileX, tileY, randomWidth, randomHeight, 25 );
-            // closestTile.alpha = 0.85;
-        }
+        this.gameScreen.socket.emit( 'paintTile', this.gameScreen.roomId, keyString, tileX, tileY, randomWidth, randomHeight, tileColour );
 
         this.destroy();
     }
