@@ -15,10 +15,6 @@ let queueList = [];
 let playerList = new Map();
 let gameMap = new Map();
 
-userDisconnect = ( socket ) => {
-    playerList.delete( socket.id );
-}
-
 startGame = () => {
     let gamePlayers = [ ...queueList ];
     queueList = [];
@@ -33,15 +29,27 @@ startGame = () => {
     }
 }
 
+updateLobby = () => {
+    queueList.forEach( socketId => {
+        io.sockets.to( socketId ).emit( 'updateQueue', queueList );
+    } );
+}
+
 io.on( 'connection', ( socket ) => {
     console.log( 'connection made with id: ' + socket.id );
     queueList.push( socket.id );
 
-    if( queueList.length === 2 ) {
+    updateLobby();
+
+    if( queueList.length === 4 ) {
         startGame();
     }
 
-    socket.on( 'disconnect', userDisconnect, socket );
+    socket.on( 'disconnect', () => {
+        queueList = queueList.filter( item => item !== socket.id );
+        playerList.delete( socket.id );
+        updateLobby();
+    } );
     socket.on( 'exportPlayer', ( socketId, roomId, player, team, playerNum ) => {
         gameMap.get( roomId ).set( socketId, {
             socketId: socketId,

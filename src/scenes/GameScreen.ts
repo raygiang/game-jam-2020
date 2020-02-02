@@ -204,6 +204,7 @@ export default class GameScreen extends Phaser.Scene {
         this.socket.on( 'refreshPlayer', this.refreshPlayer );
 
         this.game.events.on( 'visible', this.submitRefreshRequest );
+        this.game.events.on( 'hidden', this.hidePlayer );
     }
 
     update = () => {
@@ -221,6 +222,10 @@ export default class GameScreen extends Phaser.Scene {
      ************************************************************************/
     submitRefreshRequest = () => {
         this.socket.emit( 'refreshPlayers', this.roomId );
+    }
+    
+    hidePlayer = () => {
+        this.socket.emit( 'respawnPlayer', this.socket.id, this.roomId );
     }
 
     exportPlayer = () => {

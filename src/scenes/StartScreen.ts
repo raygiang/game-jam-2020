@@ -1,5 +1,4 @@
 import { config } from '../constants';
-
 export default class StartScreen extends Phaser.Scene {
 
     startButton: Phaser.GameObjects.Text;
