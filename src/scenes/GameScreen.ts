@@ -201,6 +201,9 @@ export default class GameScreen extends Phaser.Scene {
         this.socket.on( 'addProjectileSprite', this.updateProjectiles );
         this.socket.on( 'respawnPlayer', this.respawnPlayer );
         this.socket.on( 'paintTile', this.paintTile );
+        this.socket.on( 'refreshPlayer', this.refreshPlayer );
+
+        this.game.events.on( 'visible', this.submitRefreshRequest );
     }
 
     update = () => {
@@ -216,8 +219,18 @@ export default class GameScreen extends Phaser.Scene {
     /************************************************************************
      * SOCKET FUNCTIONS
      ************************************************************************/
+    submitRefreshRequest = () => {
+        this.socket.emit( 'refreshPlayers', this.roomId );
+    }
+
     exportPlayer = () => {
         this.socket.emit( 'exportPlayer', this.socket.id, this.roomId, this.player, this.player.team, this.player.playerNum );
+    }
+
+    refreshPlayer = ( socketId: string, opponent: Player, team: string, playerNum: number ) => {
+        if( ! this.playerMap.get( socketId ) ) {
+            this.addOpponent( socketId, opponent, team, playerNum );
+        }
     }
 
     addOpponent = ( socketId: string, opponent: Player, team: string, playerNum: number ) => {

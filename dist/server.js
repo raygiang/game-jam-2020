@@ -13,6 +13,7 @@ console.log( "Server running on localhost:9001" );
 
 let queueList = [];
 let playerList = new Map();
+let gameMap = new Map();
 
 userDisconnect = ( socket ) => {
     playerList.delete( socket.id );
@@ -22,6 +23,7 @@ startGame = () => {
     let gamePlayers = [ ...queueList ];
     queueList = [];
     let roomId = gamePlayers[0];
+    gameMap.set( roomId, new Map() );
     let team;
 
     for( let i = 0; i < gamePlayers.length; i++ ) {
@@ -41,7 +43,20 @@ io.on( 'connection', ( socket ) => {
 
     socket.on( 'disconnect', userDisconnect, socket );
     socket.on( 'exportPlayer', ( socketId, roomId, player, team, playerNum ) => {
+        gameMap.get( roomId ).set( socketId, {
+            socketId: socketId,
+            player: player,
+            team: team,
+            playerNum: playerNum
+        } );
         socket.to( roomId ).emit( 'addOpponent', socketId, player, team, playerNum );
+    } );
+    socket.on( 'refreshPlayers', ( roomId ) => {
+        gameMap.get( roomId ).forEach( player => {
+            if( player.socketId !== socket.id ) {
+                socket.emit( 'refreshPlayer', player.socketId, player.player, player.team, player.playerNum );
+            }
+        } )
     } );
     socket.on( 'exportMovement', ( socketId, roomId, x, y, animKey, animFrame ) => {
         socket.to( roomId ).emit( 'updateMovement', socketId, x, y, animKey, animFrame );
