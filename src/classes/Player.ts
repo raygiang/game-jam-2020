@@ -1,13 +1,14 @@
 import { config, playerSettings } from '../constants';
 import Projectile from './Projectile';
-import GameScreen from '../scenes/GameScreen';
+import Survival from '../scenes/Survival';
+import TurfWars from '../scenes/TurfWars';
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
     public team: string;
     public playerNum: number;
     private facing: string;
     private reloading: boolean;
-    private gameScreen: GameScreen;
+    private gameScreen: Survival | TurfWars;
     public miniMapMarker: Phaser.GameObjects.Graphics;
     private reloadBackground: Phaser.GameObjects.Graphics;
     private reloadForeground: Phaser.GameObjects.Graphics;
@@ -28,7 +29,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private canMove: boolean = true;
 
     // Create a player corresponding the a specific team and player number
-    constructor( scene: GameScreen, x: number, y: number, team: string, playerNum: number ) {
+    constructor( scene: Survival | TurfWars, x: number, y: number, team: string, playerNum: number ) {
         super( scene, x, y, `${team}-players`, 42 + 48 * playerNum );
 
         this.team = team;
@@ -186,7 +187,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     fireProjectile = () => {
         if( this.projectilesFired < this.maxAmmo ) {
             let projType = Math.floor( Math.random() * 5 )
-            this.gameScreen.socket.emit( 'addProjectile', this.gameScreen.socket.id, this.gameScreen.roomId, this.x, this.y, projType, this.facing, this.team );
+            if( this.gameScreen instanceof TurfWars ) {
+                this.gameScreen.socket.emit( 'addProjectile', this.gameScreen.socket.id, this.gameScreen.roomId, this.x, this.y, projType, this.facing, this.team );
+            }
+            else {
+                this.addProjectileSprite( this.x, this.y, projType, this.facing, this.team );
+            }
             this.projectilesFired++;
             this.updatePlayerDisplayInfo();
         }
@@ -261,17 +267,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     addMinimapMarker = ( hex: string ) => {
+        let mapX = this.gameScreen.minimapX + ( this.x / this.gameScreen.mapWidth * this.gameScreen.minimap.width * this.gameScreen.minimapScale );
+        let mapY = this.gameScreen.minimapY + ( this.y / this.gameScreen.mapHeight * this.gameScreen.minimap.height * this.gameScreen.minimapScale );
         this.minimapMarkerColour = Phaser.Display.Color.HexStringToColor( hex ).color;
         this.miniMapMarker = this.gameScreen.add.graphics();
         this.miniMapMarker.setScrollFactor( 0 );
         this.miniMapMarker.fillStyle( this.minimapMarkerColour );
-        this.miniMapMarker.fillCircle( 756 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 127 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 2.5 );
+        this.miniMapMarker.fillCircle( mapX, mapY, 2.5 );
     }
 
     updateMinimapMarker = () => {
+        let mapX = this.gameScreen.minimapX + ( this.x / this.gameScreen.mapWidth * this.gameScreen.minimap.width * this.gameScreen.minimapScale );
+        let mapY = this.gameScreen.minimapY + ( this.y / this.gameScreen.mapHeight * this.gameScreen.minimap.height * this.gameScreen.minimapScale );
         this.miniMapMarker.clear();
         this.miniMapMarker.fillStyle( this.minimapMarkerColour );
-        this.miniMapMarker.fillCircle( 756 + 144 * this.x / ( this.gameScreen.tileWidth * 75 ), 127 + 96 * this.y / ( this.gameScreen.tileWidth * 50 ), 2.5 );
+        this.miniMapMarker.fillCircle( mapX, mapY, 2.5 );
     }
 
     updateSprite = ( x: number, y: number, key: string, frame: number ) => {
@@ -297,7 +307,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.playerHP -= dmg;
         if( this.playerHP <= 0 ) {
             this.disableBody( true, true );
-            this.gameScreen.socket.emit( 'respawnPlayer', this.gameScreen.socket.id, this.gameScreen.roomId );
+            if( this.gameScreen instanceof TurfWars ) {
+                this.gameScreen.socket.emit( 'respawnPlayer', this.gameScreen.socket.id, this.gameScreen.roomId );
+            }
+            else {
+                this.respawnPlayer
+            }
         }
     }
 

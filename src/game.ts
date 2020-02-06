@@ -1,9 +1,10 @@
 import 'phaser';
 import StartScreen from './scenes/StartScreen';
 import GameLobby from './scenes/GameLobby';
-import GameScreen from './scenes/GameScreen';
+import Survival from './scenes/Survival';
+import TurfWars from './scenes/TurfWars';
 import { config } from './constants';
-import { loadPlayerAnimations, loadProjectileAnimations } from './helpers/playerAssetFunctions';
+import { loadPlayerAnimations, loadProjectileAnimations, loadTurfWarsStageOne } from './helpers/assetFunctions';
 
 window.addEventListener( 'load', () => {
 	const game = new Phaser.Game( config );
@@ -11,7 +12,8 @@ window.addEventListener( 'load', () => {
     game.scene.add( 'Boot', Boot, true );
     game.scene.add( 'StartScreen', StartScreen, false );
     game.scene.add( 'GameLobby', GameLobby, false );
-    game.scene.add( 'GameScreen', GameScreen, false );
+    game.scene.add( 'Survival', Survival, false );
+    game.scene.add( 'TurfWars', TurfWars, false );
 
     // console.log( Phaser.Core.TimeStep.forceSetTimeOut );
     game.events.off( 'hidden' );
@@ -36,14 +38,8 @@ class Boot extends Phaser.Scene {
         this.add.text( config.width / 2 - 260, config.height / 2 - 30, 'Loading Game...', { fontSize: 60 } );
 
         this.load.setBaseURL( 'assets/' );
-        this.load.image( 'stage-1', '/stages/stage-1/stage-1.jpg' );
-        this.load.image( 'stage-1-base', '/stages/stage-1/base.png' );
-        this.load.image( 'stage-1-foreground', '/stages/stage-1/foreground.png' );
-        this.load.image( 'stage-1-subground', '/stages/stage-1/subground.png' );
-        this.load.tilemapCSV( 'stage-1-collision', 'stages/stage-1/collision.csv' );
-        this.load.tilemapCSV( 'stage-1-unwalkable', 'stages/stage-1/unwalkable.csv' );
-        this.load.tilemapCSV( 'stage-1-spawn-1', 'stages/stage-1/team-1-spawn.csv' );
-        this.load.tilemapCSV( 'stage-1-spawn-2', 'stages/stage-1/team-2-spawn.csv' );
+
+        loadTurfWarsStageOne( this );
 
         this.load.spritesheet( 'unicorn-players', 'unicorn-atlas.png', {
             frameWidth: 16,
@@ -58,7 +54,12 @@ class Boot extends Phaser.Scene {
             frameHeight: 16,
         } );
 
-        this.load.audio( 'stage-music', 'audio/foggy-woods.mp3' );
+        this.load.audio( 'survival-music', 'audio/celestial.mp3' );
+        this.load.audio( 'turf-wars-music', 'audio/foggy-woods.mp3' );
+
+        this.load.image( 'survival-1-map', 'survival-stages/survival-1.png' )
+        this.load.image( 'tilemap_packed', 'survival-stages/tilemap_packed.png' );
+        this.load.tilemapTiledJSON( 'survival-1', 'survival-stages/survival-1.json' );
 	}
 
 	create() {

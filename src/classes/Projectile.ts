@@ -1,14 +1,15 @@
-import GameScreen from '../scenes/GameScreen';
+import Survival from '../scenes/Survival';
+import TurfWars from '../scenes/TurfWars';
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
     private projType : number;
     private direction : string;
-    private gameScreen : GameScreen;
+    private gameScreen : Survival | TurfWars;
     private hexColour : string;
     public team : string;
     public damagePts : number = 1;
     
-    constructor( scene: GameScreen, x: number, y: number, projType: number, direction: string, team: string ) {
+    constructor( scene: Survival | TurfWars, x: number, y: number, projType: number, direction: string, team: string ) {
         super( scene, x, y, 'projectiles', ( projType + 1 ) * 13 );
 
         this.projType = projType;
@@ -90,7 +91,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         let keyString = tileX + ', ' + tileY;
         let tileColour = Phaser.Display.Color.HexStringToColor( this.hexColour ).color;
 
-        this.gameScreen.socket.emit( 'paintTile', this.gameScreen.roomId, keyString, tileX, tileY, randomWidth, randomHeight, tileColour );
+        if( this.gameScreen instanceof TurfWars ) {
+            this.gameScreen.socket.emit( 'paintTile', this.gameScreen.roomId, keyString, tileX, tileY, randomWidth, randomHeight, tileColour );
+        }
 
         this.destroy();
     }

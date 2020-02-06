@@ -23,7 +23,7 @@ export default class GameLobby extends Phaser.Scene {
     }
 
     startGame = ( roomId: string, team: string, num: number ) => {
-        this.scene.start( 'GameScreen', { socket: this.socket, roomId: roomId, team: team, num : num } );
+        this.scene.start( 'TurfWars', { socket: this.socket, roomId: roomId, team: team, num : num } );
     }
 
     preload = () => {
